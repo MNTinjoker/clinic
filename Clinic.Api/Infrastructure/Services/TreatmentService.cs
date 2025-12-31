@@ -561,6 +561,7 @@ namespace Clinic.Api.Infrastructure.Services
                         a.Id,
                         a.Start,
                         a.Arrived,
+                        a.IsAllDay,
                         PatientId = p.Id,
                         PatientName = (p.FirstName + " " + p.LastName).Trim(),
                         PractitionerId = u.Id,
@@ -569,6 +570,33 @@ namespace Clinic.Api.Infrastructure.Services
                         PhoneNumber = ph != null ? ph.Number : null
                     }
                 ).ToListAsync();
+
+                var outOfTurnAppointments = await (
+          from a in query
+          where a.IsAllDay == true
+          join p in _context.Patients on a.PatientId equals p.Id
+          join u in _context.Users on a.PractitionerId equals u.Id
+          join at in _context.AppointmentTypes on a.AppointmentTypeId equals at.Id
+          join ph in _context.PatientPhones on p.Id equals ph.PatientId into phg
+          from ph in phg.OrderByDescending(x => x.CreatedOn).Take(1).DefaultIfEmpty()
+          select new
+          {
+              a.Id,
+              a.Start,
+              a.Arrived,
+              a.IsAllDay, 
+              PatientId = p.Id,
+              PatientName = (p.FirstName + " " + p.LastName).Trim(),
+              PractitionerId = u.Id,
+              PractitionerName = (u.FirstName + " " + u.LastName).Trim(),
+              AppointmentTypeName = at.Name + " (خارج از نوبت)",
+              PhoneNumber = ph != null ? ph.Number : null
+          }
+      ).ToListAsync();
+
+                var combinedAppointments = baseAppointments
+                    .Concat(outOfTurnAppointments)
+                    .ToList();
 
                 if (userRole == "Doctor")
                 {
@@ -632,7 +660,7 @@ namespace Clinic.Api.Infrastructure.Services
                     .Distinct()
                     .ToHashSetAsync();
 
-                var result = baseAppointments.Select(x =>
+                var result = combinedAppointments.Select(x =>
                 {
                     invoiceLookup.TryGetValue(x.Id, out var invoice);
                     billableLookup.TryGetValue(x.Id, out var billables);
@@ -659,7 +687,8 @@ namespace Clinic.Api.Infrastructure.Services
                         Arrived = x.Arrived,
                         TotalDiscount = invoice?.TotalDiscount,
                         InvoiceId = invoice?.Id,
-                        Receipt = invoice.Receipt
+                        Receipt = invoice.Receipt,
+                        IsOutOfTurn = x.IsAllDay == true
                     };
                 }).ToList();
 
