@@ -1197,6 +1197,44 @@ namespace Clinic.Api.Infrastructure.Services
             }
         }
 
+        public async Task<GlobalResponse> SaveQuestionAnswer(SaveQuestionAnswerDto model)
+        {
+            var result = new GlobalResponse();
+
+            try
+            {
+                var userId = _token.GetUserId();
+
+                if (model.EditOrNew == -1)
+                {
+                    var answer = _mapper.Map<AnswersContext>(model);
+                    _context.Answers.Add(answer);
+                    await _context.SaveChangesAsync();
+                    result.Message = "Answer Saved Successfully";
+                    return result;
+                }
+                else
+                {
+                    var existingAnswer = await _context.Answers.FirstOrDefaultAsync(b => b.Id == model.EditOrNew);
+
+                    if (existingAnswer == null)
+                    {
+                        throw new Exception("Answer Not Found");
+                    }
+
+                    _mapper.Map(model, existingAnswer);
+                    _context.Answers.Update(existingAnswer);
+                    await _context.SaveChangesAsync();
+                    result.Message = "Answer Updated Successfully";
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+        }
+
         public async Task<IEnumerable<GetServicesPerPatientResponse>> GetPatientServices(int patientId)
         {
             try
