@@ -7,8 +7,8 @@
         public int? PractitionerId { get; set; }
         public int? PatientId { get; set; }
         public int? AppointmentTypeId { get; set; }
-        public DateTime Start { get; set; }
-        public DateTime End { get; set; }
+        public DateTime? Start { get; set; }
+        public DateTime? End { get; set; }
         public int? RepeatId { get; set; }
         public int? RepeatEvery { get; set; }
         public int? EndsAfter { get; set; }
